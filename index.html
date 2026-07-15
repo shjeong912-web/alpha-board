@@ -13,7 +13,7 @@
   *{box-sizing:border-box;margin:0;padding:0}
   body{
     background:var(--bg); color:var(--tx);
-    font:12px/1.4 ui-monospace,"SF Mono",Menlo,Consolas,"Nanum Gothic Coding",monospace;
+    font:13.5px/1.5 ui-monospace,"SF Mono",Menlo,Consolas,"Nanum Gothic Coding",monospace;
     -webkit-font-smoothing:antialiased;
   }
   a{color:inherit}
@@ -21,10 +21,10 @@
 
   /* ── 헤더 ── */
   .top{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:8px}
-  .brand{font-weight:700;letter-spacing:.14em;font-size:13px}
+  .brand{font-weight:700;letter-spacing:.14em;font-size:15px}
   .brand span{color:var(--grn)}
-  .note{color:var(--dim2);font-size:10.5px;flex:1 1 260px;line-height:1.5}
-  .stat{color:var(--dim);font-size:11px;white-space:nowrap}
+  .note{color:var(--dim2);font-size:11.5px;flex:1 1 260px;line-height:1.5}
+  .stat{color:var(--dim);font-size:12px;white-space:nowrap}
   .stat b{color:var(--tx);font-weight:600}
   .live{display:inline-block;width:6px;height:6px;border-radius:50%;
         background:var(--grn);margin-right:5px;vertical-align:1px}
@@ -50,16 +50,16 @@
   }
   .tab[aria-selected="true"]{color:var(--tx);border-color:var(--grn);
     background:color-mix(in srgb,var(--grn) 12%,transparent)}
-  label.f{color:var(--dim);font-size:11px;display:flex;align-items:center;gap:4px}
+  label.f{color:var(--dim);font-size:12px;display:flex;align-items:center;gap:4px}
 
   /* ── 표 ── */
   .scroll{overflow-x:auto;border:1px solid var(--line);border-radius:6px;background:var(--panel)}
-  table{border-collapse:collapse;width:100%;min-width:1680px}
-  th,td{padding:5px 7px;text-align:left;white-space:nowrap;
+  table{border-collapse:collapse;width:100%;min-width:1980px}
+  th,td{padding:7px 9px;text-align:left;white-space:nowrap;
         border-bottom:1px solid var(--line)}
   thead th{
     position:sticky;top:0;z-index:2;background:#080d11;
-    color:var(--dim2);font-size:10px;font-weight:600;letter-spacing:.09em;
+    color:var(--dim2);font-size:11px;font-weight:700;letter-spacing:.09em;
     cursor:pointer;user-select:none;
   }
   thead th:hover{color:var(--dim)}
@@ -67,11 +67,11 @@
   tbody tr:hover{background:#0f161d}
   tbody tr.tradfi td:first-child{border-left:2px solid var(--pur)}
 
-  .sym{font-weight:700;font-size:12.5px;letter-spacing:.03em}
-  .mark{font-size:14px}
-  .why{color:var(--dim);font-size:10px}
+  .sym{font-weight:700;font-size:14.5px;letter-spacing:.03em}
+  .mark{font-size:17px}
+  .why{color:var(--dim);font-size:11.5px}
   .chip{
-    display:inline-block;padding:1px 5px;border-radius:3px;font-size:10px;
+    display:inline-block;padding:2px 6px;border-radius:3px;font-size:11.5px;
     border:1px solid transparent;line-height:1.5;
   }
   .g{color:var(--grn);border-color:color-mix(in srgb,var(--grn) 40%,transparent);
@@ -86,12 +86,15 @@
   .p{color:var(--pur);border-color:color-mix(in srgb,var(--pur) 40%,transparent);
      background:color-mix(in srgb,var(--pur) 10%,transparent)}
   .num{text-align:right;font-variant-numeric:tabular-nums}
+  /* 핵심숫자(근거) 블록과 지표chip(참고) 블록을 시각적으로 가른다 */
+  th:nth-child(8),td:nth-child(8){border-left:1px solid var(--line2)}
+  th:nth-child(5),td:nth-child(5){border-left:1px solid var(--line2)}
   .up{color:var(--grn)} .dn{color:var(--red)}
 
   /* ALPHA 막대 */
   .alpha{display:flex;align-items:center;gap:6px;min-width:96px}
-  .alpha b{width:30px;text-align:right;font-variant-numeric:tabular-nums}
-  .bar-o{flex:1;height:3px;background:var(--line2);border-radius:2px;overflow:hidden}
+  .alpha b{width:34px;text-align:right;font-variant-numeric:tabular-nums}
+  .bar-o{flex:1;height:4px;background:var(--line2);border-radius:2px;overflow:hidden}
   .bar-i{height:100%;background:var(--grn)}
 
   /* 상태 */
@@ -110,24 +113,24 @@
   .card h2 .x{margin-left:auto;background:transparent;border:1px solid var(--line2);
               color:var(--dim);border-radius:4px;padding:2px 9px;cursor:pointer;font-size:14px}
   .card h2 .x:hover{color:var(--tx);border-color:var(--dim)}
-  .sub{color:var(--dim);font-size:11.5px;margin:4px 0 12px;line-height:1.7}
-  .sec{color:var(--dim2);font-size:10px;letter-spacing:.12em;font-weight:600;
+  .sub{color:var(--dim);font-size:12.5px;margin:4px 0 12px;line-height:1.7}
+  .sec{color:var(--dim2);font-size:11px;letter-spacing:.12em;font-weight:600;
        border-bottom:1px solid var(--line);padding-bottom:4px;margin:14px 0 8px}
-  .sr{display:grid;grid-template-columns:66px 1fr 88px 34px;gap:8px;
-      align-items:center;padding:3px 0;font-size:11.5px}
+  .sr{display:grid;grid-template-columns:76px 1fr 88px 38px;gap:9px;
+      align-items:center;padding:4px 0;font-size:12.5px}
   .sr .nm{color:var(--dim)}
   .sr .tk{height:4px;background:var(--line2);border-radius:2px;position:relative;overflow:hidden}
   .sr .tk i{position:absolute;top:0;bottom:0;left:50%;border-radius:2px}
   .sr .sc{text-align:right;font-variant-numeric:tabular-nums;font-weight:700}
   .kv{display:grid;grid-template-columns:repeat(auto-fill,minmax(132px,1fr));gap:6px}
   .kv div{background:#0e151b;border:1px solid var(--line);border-radius:4px;padding:6px 8px}
-  .kv b{display:block;color:var(--dim2);font-size:9.5px;letter-spacing:.08em;
+  .kv b{display:block;color:var(--dim2);font-size:10.5px;letter-spacing:.08em;
         font-weight:600;margin-bottom:2px}
-  .kv span{font-size:12.5px;font-variant-numeric:tabular-nums}
+  .kv span{font-size:13.5px;font-variant-numeric:tabular-nums}
   tbody tr{cursor:pointer}
-  .tm{font-size:11px;font-variant-numeric:tabular-nums}
-  .tm i{display:block;color:var(--dim2);font-size:9.5px;font-style:normal}
-  .legend{margin-top:8px;color:var(--dim2);font-size:10.5px;line-height:1.8}
+  .tm{font-size:12.5px;font-variant-numeric:tabular-nums}
+  .tm i{display:block;color:var(--dim2);font-size:11px;font-style:normal}
+  .legend{margin-top:10px;color:var(--dim2);font-size:11.5px;line-height:1.9}
   .legend b{color:var(--dim)}
 </style>
 </head>
@@ -219,7 +222,11 @@ let D = null, FILT = "all", SORT = {k:"mark", asc:true}, TIMER = null;
 const NUMCOLS = [["oi4","OI 4H"],["cvd","CVD"],["fr","FR%"],["p24","24H"]];
 const FIXED   = [["since","감지시간"],["mark","MARK"],["base","SYMBOL"],["alpha","ALPHA"]];
 let CHIPCOLS = [];
-const allCols = () => [...FIXED, ...CHIPCOLS.map(c=>[c,c]), ...NUMCOLS];
+/* 순서: [감지시간·MARK·SYMBOL·ALPHA] → [OI/CVD/FR/24H] → [12지표 chip]
+   핵심숫자를 앞으로 뺀 이유: OI 4H·CVD·FR·24H 는 MARK를 결정하는 '근거'다.
+   chip 12개는 참고용인데 얘들이 앞을 다 먹으면 정작 근거를 보려고 가로스크롤을
+   해야 한다. 판단에 필요한 순서대로 놓는다. */
+const allCols = () => [...FIXED, ...NUMCOLS, ...CHIPCOLS.map(c=>[c,c])];
 const SPAN = () => allCols().length;
 
 async function load(){
@@ -320,11 +327,11 @@ function render(){
           <div class="why">${x.why||""}</div></td>
       <td><div class="alpha"><b>${alpha}</b>
           <div class="bar-o"><div class="bar-i" style="width:${alpha}%"></div></div></div></td>
-      ${CHIPCOLS.map(cell).join("")}
       <td class="num ${oi4>=0?"up":"dn"}">${oi4>=0?"+":""}${oi4.toFixed(1)}%</td>
       <td class="num ${cvd>=0.55?"up":cvd<0.5?"dn":""}">${(cvd*100).toFixed(0)}%</td>
       <td class="num ${fr<0?"up":"dn"}">${fr.toFixed(4)}%${fr<=-0.05?" ⚡":""}</td>
       <td class="num"><span class="${p24>=0?"up":"dn"}">${p24>=0?"+":""}${p24.toFixed(2)}%</span></td>
+      ${CHIPCOLS.map(cell).join("")}
     </tr>`;
   }).join("");
 }
