@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ALPHA BOARD — 판정 순위판</title>
+<style>
+  :root{
+    --bg:#06090c; --panel:#0b1015; --line:#16202a; --line2:#1e2c38;
+    --tx:#c9d6e0; --dim:#5b7686; --dim2:#3d5462;
+    --grn:#22e07a; --red:#ff4d6a; --amb:#ffb43a; --cyn:#35d6f0; --pur:#a78bfa;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{
+    background:var(--bg); color:var(--tx);
+    font:12px/1.4 ui-monospace,"SF Mono",Menlo,Consolas,"Nanum Gothic Coding",monospace;
+    -webkit-font-smoothing:antialiased;
+  }
+  a{color:inherit}
+  .wrap{padding:10px 12px 40px}
+
+  /* ── 헤더 ── */
+  .top{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:8px}
+  .brand{font-weight:700;letter-spacing:.14em;font-size:13px}
+  .brand span{color:var(--grn)}
+  .note{color:var(--dim2);font-size:10.5px;flex:1 1 260px;line-height:1.5}
+  .stat{color:var(--dim);font-size:11px;white-space:nowrap}
+  .stat b{color:var(--tx);font-weight:600}
+  .live{display:inline-block;width:6px;height:6px;border-radius:50%;
+        background:var(--grn);margin-right:5px;vertical-align:1px}
+  .live.off{background:var(--red)}
+  @media (prefers-reduced-motion:no-preference){
+    .live{animation:pulse 2s infinite}
+    @keyframes pulse{50%{opacity:.25}}
+  }
+
+  /* ── 컨트롤 ── */
+  .bar{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-bottom:8px}
+  input,select,button{
+    font:inherit;background:var(--panel);color:var(--tx);
+    border:1px solid var(--line2);border-radius:4px;padding:5px 8px;
+  }
+  input:focus-visible,select:focus-visible,button:focus-visible,
+  .tab:focus-visible,th:focus-visible{outline:2px solid var(--cyn);outline-offset:1px}
+  button{cursor:pointer}
+  button:hover{border-color:var(--dim)}
+  .tab{
+    background:transparent;border:1px solid var(--line2);border-radius:4px;
+    padding:5px 10px;cursor:pointer;color:var(--dim);white-space:nowrap;
+  }
+  .tab[aria-selected="true"]{color:var(--tx);border-color:var(--grn);
+    background:color-mix(in srgb,var(--grn) 12%,transparent)}
+  label.f{color:var(--dim);font-size:11px;display:flex;align-items:center;gap:4px}
+
+  /* ── 표 ── */
+  .scroll{overflow-x:auto;border:1px solid var(--line);border-radius:6px;background:var(--panel)}
+  table{border-collapse:collapse;width:100%;min-width:1680px}
+  th,td{padding:5px 7px;text-align:left;white-space:nowrap;
+        border-bottom:1px solid var(--line)}
+  thead th{
+    position:sticky;top:0;z-index:2;background:#080d11;
+    color:var(--dim2);font-size:10px;font-weight:600;letter-spacing:.09em;
+    cursor:pointer;user-select:none;
+  }
+  thead th:hover{color:var(--dim)}
+  th .ar{color:var(--grn)}
+  tbody tr:hover{background:#0f161d}
+  tbody tr.tradfi td:first-child{border-left:2px solid var(--pur)}
+
+  .sym{font-weight:700;font-size:12.5px;letter-spacing:.03em}
+  .mark{font-size:14px}
+  .why{color:var(--dim);font-size:10px}
+  .chip{
+    display:inline-block;padding:1px 5px;border-radius:3px;font-size:10px;
+    border:1px solid transparent;line-height:1.5;
+  }
+  .g{color:var(--grn);border-color:color-mix(in srgb,var(--grn) 40%,transparent);
+     background:color-mix(in srgb,var(--grn) 10%,transparent)}
+  .r{color:var(--red);border-color:color-mix(in srgb,var(--red) 40%,transparent);
+     background:color-mix(in srgb,var(--red) 10%,transparent)}
+  .a{color:var(--amb);border-color:color-mix(in srgb,var(--amb) 40%,transparent);
+     background:color-mix(in srgb,var(--amb) 10%,transparent)}
+  .c{color:var(--cyn);border-color:color-mix(in srgb,var(--cyn) 40%,transparent);
+     background:color-mix(in srgb,var(--cyn) 10%,transparent)}
+  .n{color:var(--dim2);border-color:var(--line2)}
+  .p{color:var(--pur);border-color:color-mix(in srgb,var(--pur) 40%,transparent);
+     background:color-mix(in srgb,var(--pur) 10%,transparent)}
+  .num{text-align:right;font-variant-numeric:tabular-nums}
+  .up{color:var(--grn)} .dn{color:var(--red)}
+
+  /* ALPHA 막대 */
+  .alpha{display:flex;align-items:center;gap:6px;min-width:96px}
+  .alpha b{width:30px;text-align:right;font-variant-numeric:tabular-nums}
+  .bar-o{flex:1;height:3px;background:var(--line2);border-radius:2px;overflow:hidden}
+  .bar-i{height:100%;background:var(--grn)}
+
+  /* 상태 */
+  .msg{padding:26px 14px;text-align:center;color:var(--dim)}
+  .msg.err{color:var(--red);text-align:left;line-height:1.7}
+  .msg.err code{color:var(--amb)}
+  /* 상세 패널 */
+  .ov{position:fixed;inset:0;background:rgba(3,6,9,.82);z-index:50;
+      display:flex;align-items:flex-start;justify-content:center;
+      padding:24px 12px;overflow:auto}
+  .ov[hidden]{display:none}
+  .card{background:var(--panel);border:1px solid var(--line2);border-radius:8px;
+        width:min(720px,100%);padding:16px 18px 18px}
+  .card h2{font-size:16px;font-weight:700;letter-spacing:.03em;
+           display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+  .card h2 .x{margin-left:auto;background:transparent;border:1px solid var(--line2);
+              color:var(--dim);border-radius:4px;padding:2px 9px;cursor:pointer;font-size:14px}
+  .card h2 .x:hover{color:var(--tx);border-color:var(--dim)}
+  .sub{color:var(--dim);font-size:11.5px;margin:4px 0 12px;line-height:1.7}
+  .sec{color:var(--dim2);font-size:10px;letter-spacing:.12em;font-weight:600;
+       border-bottom:1px solid var(--line);padding-bottom:4px;margin:14px 0 8px}
+  .sr{display:grid;grid-template-columns:66px 1fr 88px 34px;gap:8px;
+      align-items:center;padding:3px 0;font-size:11.5px}
+  .sr .nm{color:var(--dim)}
+  .sr .tk{height:4px;background:var(--line2);border-radius:2px;position:relative;overflow:hidden}
+  .sr .tk i{position:absolute;top:0;bottom:0;left:50%;border-radius:2px}
+  .sr .sc{text-align:right;font-variant-numeric:tabular-nums;font-weight:700}
+  .kv{display:grid;grid-template-columns:repeat(auto-fill,minmax(132px,1fr));gap:6px}
+  .kv div{background:#0e151b;border:1px solid var(--line);border-radius:4px;padding:6px 8px}
+  .kv b{display:block;color:var(--dim2);font-size:9.5px;letter-spacing:.08em;
+        font-weight:600;margin-bottom:2px}
+  .kv span{font-size:12.5px;font-variant-numeric:tabular-nums}
+  tbody tr{cursor:pointer}
+  .tm{font-size:11px;font-variant-numeric:tabular-nums}
+  .tm i{display:block;color:var(--dim2);font-size:9.5px;font-style:normal}
+  .legend{margin-top:8px;color:var(--dim2);font-size:10.5px;line-height:1.8}
+  .legend b{color:var(--dim)}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="top">
+    <div class="brand">ALPHA <span>BOARD</span></div>
+    <div class="note">
+      PC 봇이 스캔 → 이 화면은 결과만 표시(계산 안 함). 어느 기기에서 봐도 같은 판정.
+      <b style="color:var(--dim)">MARK</b>는 final_bot 실측(💎54% · ⭐현물주도75%) 판정 —
+      ALPHA 점수보다 <b style="color:var(--dim)">MARK가 서열의 주인</b>입니다.
+      봇=정보, 판단=사람.
+    </div>
+    <div class="stat" id="stat"><span class="live off"></span>대기</div>
+  </div>
+
+  <div class="bar">
+    <input id="q" placeholder="심볼 검색 → Enter" style="width:130px" aria-label="심볼 검색">
+    <label class="f">갱신
+      <select id="iv">
+        <option value="0">수동</option>
+        <option value="60000">1분</option>
+        <option value="180000" selected>3분</option>
+        <option value="600000">10분</option>
+      </select>
+    </label>
+    <button id="go">새로고침</button>
+    <span style="flex:1"></span>
+    <button class="tab" data-f="all" aria-selected="true">ALL</button>
+    <button class="tab" data-f="dia" aria-selected="false">💎 노다지</button>
+    <button class="tab" data-f="spot" aria-selected="false">⭐ 현물주도</button>
+    <button class="tab" data-f="sq" aria-selected="false">🔥 숏스퀴즈</button>
+    <button class="tab" data-f="vwap" aria-selected="false">⚡ VWAP 돌파</button>
+    <button class="tab" data-f="acc" aria-selected="false">💎 바닥매집(흡수)</button>
+  </div>
+
+  <div class="scroll">
+    <table>
+      <thead><tr id="head"></tr></thead>
+      <tbody id="body"><tr><td colspan="19"><div class="msg">불러오는 중…</div></td></tr></tbody>
+    </table>
+  </div>
+
+  <div class="legend">
+    <b>행을 누르면 상세</b> — 12지표 점수표 + 원시값. <b>감지시간</b>은 그 마크가 시작된 때 (6시간째 💎 ≠ 방금 💎).<br>\n    <b>MARK</b> 💎 강한연료(노다지·아직 갈 자리) · ⭐ 현물주도(실제 돈) · 🟢 연료생존 ·
+    🟡 연료 약함(관찰) · 🔴 연료없는 상승/과열(추격금지) &nbsp;—&nbsp;
+    <b>러너 태우기</b>: 얼마나 올랐든 OI 살아있으면 태우고, OI 빠지는데 오르는 것만 자름.<br>
+    <b>볼밴</b> 돌파 <b>임박/초입</b>에 가점, <b>이미 밴드 밖에서 진행 중이면 0점</b>
+    (알람이 돌파 끝난 뒤 울리던 것 재설계).<br>
+    <b style="color:var(--pur)">보라 테두리</b> = 주식·상품 perp. 본장 마감 중엔 기초자산이 안 움직여
+    "OI 쌓임 + 가격 조용"이 <b>매집이 아니라 그냥 장 마감</b>일 수 있음 — 본장 열림 표시를 보고 판단.
+  </div>
+</div>
+
+<div class="ov" id="ov" hidden role="dialog" aria-modal="true" aria-label="종목 상세">
+  <div class="card" id="card"></div>
+</div>
+
+<script>
+/* ══════════════════════════════════════════════════════════════
+   ALPHA BOARD — 뷰어 (계산 0줄)
+   alpha_data.json 을 읽어 그리기만 한다. 판정/점수는 전부 alpha_board.py.
+   이유: 브라우저에서도 계산하면 entry_mark 구현체가 2개가 되고 조용히 갈라진다.
+        화면엔 💎인데 텔레는 안 오는 버그 → 엔진은 하나만.
+   ══════════════════════════════════════════════════════════════ */
+/* ── 설정 — 레포/아이디 바꿨으면 여기만 고치면 됨 ─────────────────────
+   JSON을 Pages 레포가 아니라 별도 레포에서 읽는 이유:
+   GitHub Pages는 시간당 빌드 10회 소프트 제한이 있어서, 3분마다 푸시하면
+   시간당 20회 → 절반이 큐에 갇혀 '업로드는 OK인데 웹은 옛날 데이터'가 된다.
+   Pages 없는 레포는 빌드가 아예 안 생기므로 제한과 무관.               */
+const GH_OWNER = "shjeong912-web";
+const GH_DATA  = "alpha-data";      // JSON 전용 레포 (Pages 끄기)
+const GH_BR    = "main";
+const DATA_URL = `https://raw.githubusercontent.com/${GH_OWNER}/${GH_DATA}/${GH_BR}/alpha_data.json`;
+const LOCAL_URL = "alpha_data.json";   // 로컬 테스트용 폴백 (HTML 옆에 json 두고 열 때)
+const MARK_ORDER = {"💎":0,"⭐":1,"🟢":2,"🟡":3,"🔴":4};
+const $ = s => document.querySelector(s);
+const num = (x,d=0) => { const v=parseFloat(x); return Number.isFinite(v)?v:d; };
+
+let D = null, FILT = "all", SORT = {k:"mark", asc:true}, TIMER = null;
+
+/* 컬럼은 JSON의 cols가 정한다 — 봇에 지표를 추가해도 이 파일은 안 고쳐도 됨.
+   지표 컬럼(g)은 chip으로, 숫자 컬럼은 우측정렬로 그린다. */
+const NUMCOLS = [["oi4","OI 4H"],["cvd","CVD"],["fr","FR%"],["p24","24H"]];
+const FIXED   = [["since","감지시간"],["mark","MARK"],["base","SYMBOL"],["alpha","ALPHA"]];
+let CHIPCOLS = [];
+const allCols = () => [...FIXED, ...CHIPCOLS.map(c=>[c,c]), ...NUMCOLS];
+const SPAN = () => allCols().length;
+
+async function load(){
+  const stat = $("#stat");
+  stat.innerHTML = '<span class="live"></span>불러오는 중…';
+  try{
+    // ?t= 는 캐시 무력화 — raw.githubusercontent 는 5분 캐시라 이게 없으면 옛 데이터를 문다
+    let j = null, err = null;
+    for(const u of [DATA_URL, LOCAL_URL]){        // 원격 → 실패시 로컬(테스트용)
+      try{
+        const r = await fetch(`${u}?t=${Date.now()}`, {cache:"no-store"});
+        if(!r.ok){ err = "HTTP " + r.status; continue; }
+        j = await r.json(); break;
+      }catch(e){ err = String(e.message || e); }
+    }
+    if(!j) throw new Error(err || "불러오기 실패");
+    if(!j || !Array.isArray(j.rows)) throw new Error("rows 없음 — 봇이 아직 안 올렸을 수 있음");
+    CHIPCOLS = Array.isArray(j.cols) && j.cols.length
+      ? j.cols.filter(c => typeof c === "string")
+      : ["흡수/이탈","VWAP","MTF","스퀴즈","ATR","FLOW","SURGE"];  // 구버전 JSON 대비
+    D = j;
+    render();
+    const age = Math.round((Date.now()/1000 - num(j.updated_ts))/60);
+    const stale = age > Math.max(10, num(j.scan_sec,180)/60*3);
+    stat.innerHTML = `<span class="live ${stale?"off":""}"></span>`
+      + `<b>${j.rows.length}</b> symbols · ${j.updated || "?"}`
+      + (stale ? ` <b style="color:var(--red)">· ${age}분 전 (봇 멈춤?)</b>` : "")
+      + ` · 미국 본장 <b style="color:${j.us_open?"var(--grn)":"var(--dim2)"}">${j.us_open?"열림":"마감"}</b>`
+      + ` · 청산WS <b style="color:${j.ws?"var(--grn)":"var(--red)"}">${j.ws?"연결":"끊김"}</b>`
+      + (num(j.liq_events) ? ` <span style="color:var(--dim2)">(${num(j.liq_events).toLocaleString()}건)</span>` : "");
+  }catch(e){
+    stat.innerHTML = '<span class="live off"></span>실패';
+    $("#body").innerHTML = `<tr><td colspan="${SPAN()}"><div class="msg err">
+      <b>데이터를 읽지 못했습니다.</b> — ${String(e.message||e)}<br><br>
+      확인할 것:<br>
+      · PC에서 <code>alpha_board.py</code> 가 돌고 있나요?<br>
+      · 봇 로그에 <code>[대시보드] GitHub 업로드 OK</code> 가 찍혔나요?<br>
+      · <code>${GH_OWNER}/${GH_DATA}</code> 레포가 <b>Public</b> 인가요? (Private이면 못 읽음)<br>
+      · 이 주소가 열리나요 → <a href="${DATA_URL}" target="_blank" rel="noopener"
+        style="color:var(--cyn)">${DATA_URL}</a>
+    </div></td></tr>`;
+  }
+}
+
+function render(){
+  if(!D) return;
+  const q = $("#q").value.trim().toUpperCase();
+  let r = D.rows.slice();
+  if(q) r = r.filter(x => String(x.base||"").includes(q) || String(x.sym||"").includes(q));
+  if(FILT==="dia")  r = r.filter(x => x.mark==="💎");
+  if(FILT==="spot") r = r.filter(x => x.mark==="⭐");
+  if(FILT==="sq")   r = r.filter(x => num(x.fr) < -0.01);
+  if(FILT==="vwap") r = r.filter(x => !x.vwap_broke);
+  if(FILT==="acc")  r = r.filter(x => num(x.oi4) >= 10 && num(x.p24) < 8);
+
+  const k = SORT.k, sg = SORT.asc ? 1 : -1;
+  const chipVal = (row,name) => {
+    const g = Array.isArray(row.g) ? row.g.find(y => Array.isArray(y) && y[0]===name) : null;
+    return g ? num(g[2]) : 0;
+  };
+  r.sort((a,b) => {
+    if(k==="mark"){
+      const d = (MARK_ORDER[a.mark]??9) - (MARK_ORDER[b.mark]??9);
+      return d!==0 ? d*sg : num(b.alpha)-num(a.alpha);   // 동점은 항상 ALPHA 높은 순
+    }
+    if(k==="base") return String(a.base).localeCompare(String(b.base))*sg;
+    if(CHIPCOLS.includes(k))
+      return (chipVal(a,k)-chipVal(b,k))*sg;
+    return (num(a[k])-num(b[k]))*sg;
+  });
+
+  $("#head").innerHTML = allCols().map(([key,lab]) =>
+    `<th data-k="${key}" tabindex="0">${lab}${SORT.k===key?`<span class="ar">${SORT.asc?"▲":"▼"}</span>`:""}</th>`).join("");
+
+  if(!r.length){
+    $("#body").innerHTML = `<tr><td colspan="${SPAN()}"><div class="msg">
+      조건에 맞는 종목이 없습니다 — 탭을 <b>ALL</b>로 바꿔보세요.</div></td></tr>`;
+    return;
+  }
+
+  $("#body").innerHTML = r.map(x => {
+    const G = Array.isArray(x.g) ? x.g : [];     // ← 방어: g 없으면 빈 배열 (지난번 .map() 크래시)
+    const M = Object.fromEntries(G.filter(y=>Array.isArray(y)).map(y => [y[0], y]));
+    const cell = name => {
+      const y = M[name];
+      if(!y) return `<td><span class="chip n">—</span></td>`;
+      const v = num(y[2]);
+      return `<td><span class="chip ${v>0?"g":v<0?"r":"n"}">${y[1]}</span></td>`;
+    };
+    const p24 = num(x.p24), oi4 = num(x.oi4), cvd = num(x.cvd), fr = num(x.fr);
+    const alpha = Math.max(0, Math.min(100, num(x.alpha)));
+    return `<tr class="${x.tradfi?"tradfi":""}" data-sym="${x.sym}">
+      <td>${sinceCell(x)}</td>
+      <td><span class="mark">${x.mark||"·"}</span></td>
+      <td><span class="sym">${x.base||x.sym||"?"}</span>${x.tradfi?' <span class="chip p">주식</span>':""}
+          ${x.spot_fuel?' <span class="chip c">현물</span>':""}
+          <div class="why">${x.why||""}</div></td>
+      <td><div class="alpha"><b>${alpha}</b>
+          <div class="bar-o"><div class="bar-i" style="width:${alpha}%"></div></div></div></td>
+      ${CHIPCOLS.map(cell).join("")}
+      <td class="num ${oi4>=0?"up":"dn"}">${oi4>=0?"+":""}${oi4.toFixed(1)}%</td>
+      <td class="num ${cvd>=0.55?"up":cvd<0.5?"dn":""}">${(cvd*100).toFixed(0)}%</td>
+      <td class="num ${fr<0?"up":"dn"}">${fr.toFixed(4)}%${fr<=-0.05?" ⚡":""}</td>
+      <td class="num"><span class="${p24>=0?"up":"dn"}">${p24>=0?"+":""}${p24.toFixed(2)}%</span></td>
+    </tr>`;
+  }).join("");
+}
+
+/* ── 감지시간 — '방금 💎'와 '6시간째 💎'는 완전히 다른 상황이라 반드시 보여준다 ── */
+const dur = mn => mn < 60 ? `${mn}분째`
+  : mn < 1440 ? `${Math.floor(mn/60)}시간 ${mn%60}분째`
+  : `${Math.floor(mn/1440)}일 ${Math.floor(mn%1440/60)}시간째`;
+function sinceCell(x){
+  const ts = num(x.since), mn = num(x.since_min);
+  if(!ts) return `<span class="tm" style="color:var(--dim2)">—</span>`;
+  const t = new Date(ts*1000).toLocaleTimeString("ko-KR",{hour:"2-digit",minute:"2-digit",hour12:false});
+  const fresh = mn < 30;
+  return `<span class="tm" style="color:${fresh?"var(--grn)":"var(--tx)"}">${t}<i>${mn?dur(mn):"방금"}</i></span>`;
+}
+
+/* ── 상세 패널 — 표엔 chip 라벨만 보이니 원시값은 여기서 ── */
+function detail(sym){
+  const x = (D?.rows||[]).find(r => r.sym === sym);
+  if(!x) return;
+  const G = Array.isArray(x.g) ? x.g.filter(y=>Array.isArray(y)) : [];
+  const mx = Math.max(28, ...G.map(y=>Math.abs(num(y[2]))));
+  const rows = G.map(y => {
+    const v = num(y[2]), w = Math.abs(v)/mx*50;
+    const col = v>0 ? "var(--grn)" : v<0 ? "var(--red)" : "var(--dim2)";
+    return `<div class="sr">
+      <div class="nm">${y[0]}</div>
+      <div style="color:${v?col:"var(--dim)"}">${y[1]}</div>
+      <div class="tk"><i style="background:${col};${v>=0?`left:50%;width:${w}%`:`right:50%;width:${w}%`}"></i></div>
+      <div class="sc" style="color:${col}">${v>0?"+":""}${v||0}</div></div>`;
+  }).join("");
+  const f = (v,d=2,s="") => v===null||v===undefined||v==="" ? "—"
+      : (typeof v==="number" ? (v>=0&&s==="+"?"+":"")+v.toFixed(d) : v);
+  const liq = Array.isArray(x.liq)
+    ? `숏 $${(num(x.liq[0])/1e3).toFixed(0)}K / 롱 $${(num(x.liq[1])/1e3).toFixed(0)}K (${num(x.liq[2])}건)`
+    : "데이터 없음";
+  const kv = [
+    ["24H", f(x.p24,2,"+")+"%"], ["4H", f(x.ret4,2,"+")+"%"],
+    ["OI 4H", f(x.oi4,1,"+")+"%"], ["OI 1H", f(x.oi1,1,"+")+"%"],
+    ["CVD 매수", (num(x.cvd)*100).toFixed(0)+"%"], ["FR", f(x.fr,4,"+")+"%"],
+    ["ATR", f(x.atr,2)+"%"], ["FLOW", f(x.flow,1,"+")],
+    ["SURGE", "×"+f(x.surge,2)],
+    ["볼밴 위치", f(x.bb_pos,2) + (x.bb_squeeze?" 압축":"") + (x.bb_just_broke?" 방금돌파":"")],
+    ["레인지", x.rng===null||x.rng===undefined ? "—" : (num(x.rng)*100).toFixed(0)+"%"],
+    ["김프", x.kimp===null||x.kimp===undefined ? "—" : f(x.kimp,2,"+")+"%"],
+    ["청산 4H", liq],
+    ["거래대금", "$"+(num(x.turnover)/1e6).toFixed(1)+"M"],
+  ].map(([k,v]) => `<div><b>${k}</b><span>${v}</span></div>`).join("");
+  const tags = [
+    x.tradfi ? `<span class="chip p">주식 perp · 본장 ${D.us_open?"열림":"마감"}</span>` : "",
+    x.spot_fuel ? `<span class="chip c">현물주도</span>` : "",
+    x.pinned ? `<span class="chip n">관심종목(순위밖)</span>` : "",
+    num(x.turnover) < 10e6 ? `<span class="chip a">저유동 — 소액만</span>` : "",
+  ].join(" ");
+  $("#card").innerHTML = `
+    <h2><span style="font-size:20px">${x.mark||"·"}</span> ${x.base||x.sym}
+        <span style="color:var(--dim)">[${num(x.alpha)}/100] #${num(x.rank)}</span>
+        <button class="x" id="xbtn" aria-label="닫기">✕</button></h2>
+    <div class="sub">${x.why||""}<br>
+      🕐 감지 ${x.since?new Date(num(x.since)*1000).toLocaleString("ko-KR",{hour12:false}):"—"}
+      ${num(x.since_min)?" · "+dur(num(x.since_min)):" · 방금"}
+      ${tags?"<br>"+tags:""}</div>
+    <div class="sec">지표 점수 (합 ${G.reduce((s,y)=>s+num(y[2]),0)} + 기본 30 = ALPHA ${num(x.alpha)})</div>
+    ${rows||'<div class="sub">지표 없음</div>'}
+    <div class="sec">원시값</div><div class="kv">${kv}</div>`;
+  $("#ov").hidden = false;
+  $("#xbtn").onclick = close_;
+  $("#xbtn").focus();
+}
+const close_ = () => { $("#ov").hidden = true; };
+$("#ov").onclick = e => { if(e.target.id === "ov") close_(); };
+document.addEventListener("keydown", e => { if(e.key === "Escape") close_(); });
+$("#body").addEventListener("click", e => {
+  const tr = e.target.closest("tr[data-sym]");
+  if(tr) detail(tr.dataset.sym);
+});
+
+$("#go").onclick = load;
+$("#q").oninput = () => D && render();
+$("#q").addEventListener("keydown", e => {
+  if(e.key !== "Enter" || !D) return;
+  const q = $("#q").value.trim().toUpperCase();
+  const hit = D.rows.filter(r => String(r.base||"").includes(q) || String(r.sym||"").includes(q));
+  if(hit.length) detail(hit[0].sym);        // 검색 후 Enter = 그 종목 상세
+});
+document.querySelectorAll(".tab").forEach(b => b.onclick = () => {
+  document.querySelectorAll(".tab").forEach(o => o.setAttribute("aria-selected","false"));
+  b.setAttribute("aria-selected","true");
+  FILT = b.dataset.f; if(D) render();
+});
+$("#head").addEventListener("click", e => {
+  const th = e.target.closest("th"); if(!th) return;
+  const k = th.dataset.k;
+  SORT = (SORT.k===k) ? {k, asc:!SORT.asc} : {k, asc: k==="mark"||k==="base"};
+  render();
+});
+$("#head").addEventListener("keydown", e => {
+  if(e.key==="Enter"||e.key===" "){ e.preventDefault(); e.target.click(); }
+});
+function resetTimer(){
+  clearInterval(TIMER);
+  const ms = parseInt($("#iv").value, 10);
+  if(ms > 0) TIMER = setInterval(load, ms);
+}
+$("#iv").onchange = resetTimer;
+resetTimer();
+load();
+</script>
+</body>
+</html>
