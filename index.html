@@ -89,6 +89,9 @@
       color:var(--amb);border:1px solid color-mix(in srgb,var(--amb) 45%,transparent);
       background:color-mix(in srgb,var(--amb) 12%,transparent);margin-left:4px}
   .okc{color:var(--grn);font-size:10.5px;margin-left:4px;opacity:.75}
+  .ice{display:inline-block;padding:1px 5px;border-radius:3px;font-size:10.5px;
+       color:var(--cyn);border:1px solid color-mix(in srgb,var(--cyn) 50%,transparent);
+       background:color-mix(in srgb,var(--cyn) 14%,transparent);margin-left:4px;font-weight:700}
   .num{text-align:right;font-variant-numeric:tabular-nums}
   /* 핵심숫자(근거) 블록과 지표chip(참고) 블록을 시각적으로 가른다 */
   th:nth-child(8),td:nth-child(8){border-left:1px solid var(--line2)}
@@ -169,6 +172,8 @@
     </label>
     <span style="flex:1"></span>
     <button class="tab" data-f="all" aria-selected="true">ALL</button>
+    <button class="tab" data-f="ice" aria-selected="false"
+      title="온체인에서 세력이 미리 쌓아둔 코인 — 준비(온체인) + 점화(OI/CVD) 이중확인">🧊 콜드적재</button>
     <button class="tab" data-f="clean" aria-selected="false"
       title="연료(마크)와 구조(볼밴·레인지·VWAP·오더북)가 같은 말을 하는 것만">✅ 충돌없음</button>
     <button class="tab" data-f="dia" aria-selected="false">💎 노다지</button>
@@ -186,6 +191,9 @@
   </div>
 
   <div class="legend">
+    <b style="color:var(--cyn)">🧊 콜드적재</b> = 세력이 온체인에서 미리 쌓아둔 코인(onchain_tracker).
+    OI/CVD는 이미 시작된 걸 재고 콜드적재는 그 전 준비를 봄 — <b>둘이 겹치면 안 늦은 자리</b>.
+    점수 미부여(검증 전).<br>
     <b style="color:var(--amb)">⚠️ 충돌</b> = 마크(연료: OI·CVD)와 구조(볼밴·레인지·VWAP·오더북)가
     <b>반대를 말하는 중</b>. 같은 💎라도 충돌 0과 충돌 3은 다른 물건 —
     어느 쪽이 맞는지는 아직 실측 전.<br>
@@ -286,6 +294,7 @@ function render(){
   let r = D.rows.slice();
   if($("#hidered").checked) r = r.filter(x => x.mark !== "🔴");
   if(q) r = r.filter(x => String(x.base||"").includes(q) || String(x.sym||"").includes(q));
+  if(FILT==="ice")   r = r.filter(x => x.cold);
   if(FILT==="clean") r = r.filter(x => ["💎","⭐","🟢"].includes(x.mark)
                                         && !(x.conflict||[]).length);
   if(FILT==="dia")  r = r.filter(x => x.mark==="💎");
@@ -334,7 +343,7 @@ function render(){
       <td>${sinceCell(x)}</td>
       <td><span class="mark">${x.mark||"·"}</span></td>
       <td><span class="sym">${x.base||x.sym||"?"}</span>${x.tradfi?' <span class="chip p">주식</span>':""}
-          ${x.spot_fuel?' <span class="chip c">현물</span>':""}
+          ${x.spot_fuel?' <span class="chip c">현물</span>':""}${iceTag(x)}
           <div class="why">${x.why||""}${conflictTag(x)}</div></td>
       <td><div class="alpha"><b>${alpha}</b>
           <div class="bar-o"><div class="bar-i" style="width:${alpha}%"></div></div></div></td>
@@ -357,6 +366,19 @@ function sinceCell(x){
   const t = new Date(ts*1000).toLocaleTimeString("ko-KR",{hour:"2-digit",minute:"2-digit",hour12:false});
   const fresh = mn < 30;
   return `<span class="tm" style="color:${fresh?"var(--grn)":"var(--tx)"}">${t}<i>${mn?dur(mn):"방금"}</i></span>`;
+}
+
+/* ── 🧊 콜드적재 — onchain_tracker가 준 명단.
+   OI/CVD는 '이미 시작된 것'을 재고, 콜드적재는 그 전 '준비 동작'을 본다.
+   그래서 alpha_board 단독은 늘 늦는다(MET: 볼밴 이미 감 · 이미 +16%).
+   준비(온체인) + 점화(OI/CVD)가 겹치는 자리가 유일하게 안 늦는 곳.
+   ★ 단 점수는 안 준다 — 콜드 명단 실측이 절반 이상 마이너스라(IN -25%,
+     GWEI -46%) 검증 전이다. alpha_stats가 🧊 유무로 성과를 갈라 답을 준다. */
+function iceTag(x){
+  const c = x.cold;
+  if(!c || typeof c !== "object") return "";
+  return `<span class="ice" title="콜드적재 ${c.days}일차 · $${(num(c.usd)/1e6).toFixed(1)}M`
+       + ` · 지갑 ${c.wallets} · 펌프점수 ${c.score} (${c.grade||""})">🧊 ${c.days}d</span>`;
 }
 
 /* ── 충돌 — 마크(연료)와 구조 지표가 반대를 말하는 지점 ──
@@ -403,6 +425,14 @@ function detail(sym){
     ["청산 4H", liq],
     ["거래대금", "$"+(num(x.turnover)/1e6).toFixed(1)+"M"],
   ].map(([k,v]) => `<div><b>${k}</b><span>${v}</span></div>`).join("");
+  const cd = (x.cold && typeof x.cold === "object") ? x.cold : null;
+  const iceBox = !cd ? "" : `<div class="sec">🧊 콜드적재 진행중</div>
+    <div class="sub" style="color:var(--cyn)">
+      ${cd.days}일차 · $${(num(cd.usd)/1e6).toFixed(1)}M · 이체 ${cd.n}회 · 지갑 ${cd.wallets}개
+      · 펌프점수 <b>${cd.score}</b> ${cd.mark||""} ${cd.grade||""}<br>
+      <span style="color:var(--dim)">세력이 거래소에서 빼서 콜드지갑에 쌓아둔 코인입니다.
+      온체인이 준비를, 이 보드가 점화를 봅니다 — 둘이 겹치면 안 늦은 자리.
+      단 콜드적재 단독은 실측이 아직 반반이라 점수는 안 붙였습니다.</span></div>`;
   const cfl = Array.isArray(x.conflict) ? x.conflict : [];
   const cfBox = !["💎","⭐","🟢"].includes(x.mark) ? "" : (cfl.length
     ? `<div class="sec">⚠️ 충돌 ${cfl.length}개</div>
@@ -425,7 +455,7 @@ function detail(sym){
       🕐 감지 ${x.since?new Date(num(x.since)*1000).toLocaleString("ko-KR",{hour12:false}):"—"}
       ${num(x.since_min)?" · "+dur(num(x.since_min)):" · 방금"}
       ${tags?"<br>"+tags:""}</div>
-    ${cfBox}
+    ${iceBox}${cfBox}
     <div class="sec">지표 점수 (합 ${G.reduce((s,y)=>s+num(y[2]),0)} + 기본 30 = ALPHA ${num(x.alpha)})</div>
     ${rows||'<div class="sub">지표 없음</div>'}
     <div class="sec">원시값</div><div class="kv">${kv}</div>`;
