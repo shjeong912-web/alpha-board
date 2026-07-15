@@ -156,6 +156,10 @@
       </select>
     </label>
     <button id="go">새로고침</button>
+    <label class="f" title="🔴는 '이거 쫓지 마라' 경고 — 급등주를 봤을 때 필요합니다">
+      <input type="checkbox" id="hidered" style="width:13px;height:13px;accent-color:var(--grn)">
+      🔴 숨기기
+    </label>
     <span style="flex:1"></span>
     <button class="tab" data-f="all" aria-selected="true">ALL</button>
     <button class="tab" data-f="dia" aria-selected="false">💎 노다지</button>
@@ -264,6 +268,7 @@ function render(){
   if(!D) return;
   const q = $("#q").value.trim().toUpperCase();
   let r = D.rows.slice();
+  if($("#hidered").checked) r = r.filter(x => x.mark !== "🔴");
   if(q) r = r.filter(x => String(x.base||"").includes(q) || String(x.sym||"").includes(q));
   if(FILT==="dia")  r = r.filter(x => x.mark==="💎");
   if(FILT==="spot") r = r.filter(x => x.mark==="⭐");
@@ -398,6 +403,7 @@ $("#body").addEventListener("click", e => {
 });
 
 $("#go").onclick = load;
+$("#hidered").onchange = () => D && render();
 $("#q").oninput = () => D && render();
 $("#q").addEventListener("keydown", e => {
   if(e.key !== "Enter" || !D) return;
