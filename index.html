@@ -173,7 +173,7 @@
     <span style="flex:1"></span>
     <button class="tab" data-f="all" aria-selected="true">ALL</button>
     <button class="tab" data-f="ice" aria-selected="false"
-      title="온체인에서 세력이 미리 쌓아둔 코인 — 준비(온체인) + 점화(OI/CVD) 이중확인">🧊 콜드적재</button>
+      title="콜드적재 + 매집 — 준비(온체인) + 점화(OI/CVD) 이중확인">🧊 온체인</button>
     <button class="tab" data-f="clean" aria-selected="false"
       title="연료(마크)와 구조(볼밴·레인지·VWAP·오더북)가 같은 말을 하는 것만">✅ 충돌없음</button>
     <button class="tab" data-f="dia" aria-selected="false">💎 노다지</button>
@@ -191,7 +191,8 @@
   </div>
 
   <div class="legend">
-    <b style="color:var(--cyn)">🧊 콜드적재</b> = 세력이 온체인에서 미리 쌓아둔 코인(onchain_tracker).
+    <b style="color:var(--cyn)">🧊 콜드적재</b>(쌓아둠) · <b style="color:var(--cyn)">📥 매집</b>(거래소서 계속 빼감 — AERO +50% 패턴)
+    = 온체인 감시풀(onchain_tracker).
     OI/CVD는 이미 시작된 걸 재고 콜드적재는 그 전 준비를 봄 — <b>둘이 겹치면 안 늦은 자리</b>.
     점수 미부여(검증 전).<br>
     <b style="color:var(--amb)">⚠️ 충돌</b> = 마크(연료: OI·CVD)와 구조(볼밴·레인지·VWAP·오더북)가
@@ -294,7 +295,7 @@ function render(){
   let r = D.rows.slice();
   if($("#hidered").checked) r = r.filter(x => x.mark !== "🔴");
   if(q) r = r.filter(x => String(x.base||"").includes(q) || String(x.sym||"").includes(q));
-  if(FILT==="ice")   r = r.filter(x => x.cold);
+  if(FILT==="ice")   r = r.filter(x => x.onchain);
   if(FILT==="clean") r = r.filter(x => ["💎","⭐","🟢"].includes(x.mark)
                                         && !(x.conflict||[]).length);
   if(FILT==="dia")  r = r.filter(x => x.mark==="💎");
@@ -374,11 +375,19 @@ function sinceCell(x){
    준비(온체인) + 점화(OI/CVD)가 겹치는 자리가 유일하게 안 늦는 곳.
    ★ 단 점수는 안 준다 — 콜드 명단 실측이 절반 이상 마이너스라(IN -25%,
      GWEI -46%) 검증 전이다. alpha_stats가 🧊 유무로 성과를 갈라 답을 준다. */
+const SRC_ICO = {"cold":"🧊", "accum":"📥", "cold+accum":"🧊📥"};
+const SRC_TXT = {"cold":"콜드적재", "accum":"매집(거래소 인출)", "cold+accum":"콜드적재+매집"};
 function iceTag(x){
-  const c = x.cold;
+  const c = x.onchain;
   if(!c || typeof c !== "object") return "";
-  return `<span class="ice" title="콜드적재 ${c.days}일차 · $${(num(c.usd)/1e6).toFixed(1)}M`
-       + ` · 지갑 ${c.wallets} · 펌프점수 ${c.score} (${c.grade||""})">🧊 ${c.days}d</span>`;
+  const src = c.src || "?";
+  const d = [];
+  if(c.cold_score != null) d.push(`콜드 ${c.cold_days}일 $${(num(c.cold_usd)/1e6).toFixed(1)}M 지갑${c.cold_wallets}`);
+  if(c.accum_score != null) d.push(`매집 ${c.accum_days}일 $${(num(c.accum_usd)/1e6).toFixed(1)}M 지갑${c.accum_wallets} 인출${c.accum_wd}회`);
+  if(c.conc) d.push("⚠️ 저float 고집중 — 왕복 주의");
+  const days = c.cold_days ?? c.accum_days ?? "";
+  return `<span class="ice" title="${SRC_TXT[src]||src} · 점수 ${c.score}\n${d.join("\n")}">`
+       + `${SRC_ICO[src]||"🧊"} ${c.score}${days!==""?" · "+days+"d":""}</span>`;
 }
 
 /* ── 충돌 — 마크(연료)와 구조 지표가 반대를 말하는 지점 ──
@@ -425,14 +434,18 @@ function detail(sym){
     ["청산 4H", liq],
     ["거래대금", "$"+(num(x.turnover)/1e6).toFixed(1)+"M"],
   ].map(([k,v]) => `<div><b>${k}</b><span>${v}</span></div>`).join("");
-  const cd = (x.cold && typeof x.cold === "object") ? x.cold : null;
-  const iceBox = !cd ? "" : `<div class="sec">🧊 콜드적재 진행중</div>
+  const cd = (x.onchain && typeof x.onchain === "object") ? x.onchain : null;
+  const iceBox = !cd ? "" : `<div class="sec">${SRC_ICO[cd.src]||"🧊"} ${SRC_TXT[cd.src]||cd.src} · 점수 ${cd.score}</div>
     <div class="sub" style="color:var(--cyn)">
-      ${cd.days}일차 · $${(num(cd.usd)/1e6).toFixed(1)}M · 이체 ${cd.n}회 · 지갑 ${cd.wallets}개
-      · 펌프점수 <b>${cd.score}</b> ${cd.mark||""} ${cd.grade||""}<br>
-      <span style="color:var(--dim)">세력이 거래소에서 빼서 콜드지갑에 쌓아둔 코인입니다.
-      온체인이 준비를, 이 보드가 점화를 봅니다 — 둘이 겹치면 안 늦은 자리.
-      단 콜드적재 단독은 실측이 아직 반반이라 점수는 안 붙였습니다.</span></div>`;
+      ${cd.cold_score!=null ? `<b>콜드적재</b> ${cd.cold_days}일차 · $${(num(cd.cold_usd)/1e6).toFixed(1)}M
+        · 이체 ${cd.cold_n}회 · 지갑 ${cd.cold_wallets}개 · 펌프점수 ${cd.cold_score} ${cd.mark||""}<br>` : ""}
+      ${cd.accum_score!=null ? `<b>매집</b> ${cd.accum_days}일차 · $${(num(cd.accum_usd)/1e6).toFixed(1)}M
+        · 인출 ${cd.accum_wd}회 · 지갑 ${cd.accum_wallets}개 · 매집점수 ${cd.accum_score}<br>` : ""}
+      ${cd.conc ? `<span style="color:var(--amb)">⚠️ 저float 고집중 — 왕복(가짜 매집) 주의</span><br>` : ""}
+      <span style="color:var(--dim)">콜드 = 거래소에서 빼서 콜드지갑에 쌓아둠.
+      매집 = 거래소에서 계속 빼가는 중(AERO 패턴, +50%).
+      온체인이 준비를, 이 보드가 점화를 봅니다 — 둘 다 확인된 자리.
+      단 어느 유형이 나은지는 아직 실측 전이라 점수는 안 붙였습니다.</span></div>`;
   const cfl = Array.isArray(x.conflict) ? x.conflict : [];
   const cfBox = !["💎","⭐","🟢"].includes(x.mark) ? "" : (cfl.length
     ? `<div class="sec">⚠️ 충돌 ${cfl.length}개</div>
