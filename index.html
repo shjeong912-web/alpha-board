@@ -176,6 +176,8 @@
       title="콜드적재 + 매집 — 준비(온체인) + 점화(OI/CVD) 이중확인">🧊 온체인</button>
     <button class="tab" data-f="clean" aria-selected="false"
       title="연료(마크)와 구조(볼밴·레인지·VWAP·오더북)가 같은 말을 하는 것만">✅ 충돌없음</button>
+    <button class="tab" data-f="load" aria-selected="false"
+      title="OI 적재 지속 + 가격 아직 = 점화 직전 (실측 승률 65~76%)">🔋 장전</button>
     <button class="tab" data-f="dia" aria-selected="false">💎 노다지</button>
     <button class="tab" data-f="spot" aria-selected="false">⭐ 현물주도</button>
     <button class="tab" data-f="sq" aria-selected="false">🔥 숏스퀴즈</button>
@@ -204,7 +206,28 @@
     <b>볼밴</b> 돌파 <b>임박/초입</b>에 가점, <b>이미 밴드 밖에서 진행 중이면 0점</b>
     (알람이 돌파 끝난 뒤 울리던 것 재설계).<br>
     <b style="color:var(--pur)">보라 테두리</b> = 주식·상품 perp. 본장 마감 중엔 기초자산이 안 움직여
-    "OI 쌓임 + 가격 조용"이 <b>매집이 아니라 그냥 장 마감</b>일 수 있음 — 본장 열림 표시를 보고 판단.
+    "OI 쌓임 + 가격 조용"이 <b>매집이 아니라 그냥 장 마감</b>일 수 있음 — 본장 열림 표시를 보고 판단.<br>
+    <b style="color:var(--amb)">🔋 장전</b> = OI가 <b>여러 스캔 연속 적재</b>되는데 가격은 아직(p24&lt;8%) — 점화 직전 매집.
+    실측 승률 <b>65%</b>(🔋 3연속) · <b>76%</b>(🔋🔋 5연속). 대부분 소폭, 가끔이 대박 —
+    <b>BANK·SYN·HOME 대박이 전부 이 상태를 거쳐 나왔다.</b> 선취(소액) → 점화 시 추가.
+    텔레그램으로도 따로 옴.
+
+    <div style="margin-top:9px;padding:8px 10px;border:1px solid var(--line2);border-radius:5px;
+                background:color-mix(in srgb,var(--grn) 4%,transparent)">
+      <b style="color:var(--tx)">📖 화면 판독 순서 — ALPHA 점수 말고 이 순서로 읽어라</b><br>
+      <b>① MARK</b> — 💎(47%) &gt; 🟢(27%) &gt; <b style="color:var(--red)">⭐(24%, 지금 노이즈 — 무시)</b>.
+      💎만 신뢰.<br>
+      <b>② OI4H</b> — 제일 깨끗한 지표. <b style="color:var(--dim)">8%+ = 진짜 매집</b>
+      (0~3% 승률 24% → 8~15% 53% → 15%+ 67%). 3% 미만이면 연료 없음.<br>
+      <b>③ 24H(p24)</b> — <b>8% 미만 = 장전</b>(OI 실리면 최고) · <b style="color:var(--red)">10~20% = 사망존</b>
+      (25% 승률 — 어중간하게 오른 거 따라가지 마라) · 15%+는 OI 실린 추세(BANK식)만.<br>
+      <b>④ 볼밴 위치</b>(상세패널) — <b style="color:var(--dim)">0.85~1.1 = 돌파 직전~막 돌파(유일한 플러스 구간)</b>.
+      1.1↑는 이미 나감(추격), 0.85↓는 연료 없음.<br>
+      <b>⑤ CVD</b> — 0.85+ 진짜 매수. <b style="color:var(--red)">0.6~0.85가 함정</b>(승률 22%) — 어중간한 건 믿지 마라.<br>
+      <b style="color:var(--amb)">⚠️ ALPHA 85+ = 경고등</b>(승률 32~36%, 최악). 고득점 = 과열추격인 경우가 많다.
+      &nbsp;/&nbsp; <b style="color:var(--pur)">주식 perp</b>(SOXS·MU·SNDK·AAPL·SKHY…)은 발사에서 제외 — 없는 셈 쳐라.<br>
+      <span style="color:var(--dim2)">※ 5일 · 발사 124건 실측. BANK 한 종목이 표본을 끌어올림 — 확정 아니라 가설. 로그 쌓이면 재측정.</span>
+    </div>
   </div>
 </div>
 
@@ -298,6 +321,7 @@ function render(){
   if(FILT==="ice")   r = r.filter(x => x.onchain);
   if(FILT==="clean") r = r.filter(x => ["💎","⭐","🟢"].includes(x.mark)
                                         && !(x.conflict||[]).length);
+  if(FILT==="load") r = r.filter(x => x.loading);
   if(FILT==="dia")  r = r.filter(x => x.mark==="💎");
   if(FILT==="spot") r = r.filter(x => x.mark==="⭐");
   if(FILT==="sq")   r = r.filter(x => num(x.fr) < -0.01);
@@ -344,7 +368,7 @@ function render(){
       <td>${sinceCell(x)}</td>
       <td><span class="mark">${x.mark||"·"}</span></td>
       <td><span class="sym">${x.base||x.sym||"?"}</span>${x.tradfi?' <span class="chip p">주식</span>':""}
-          ${x.spot_fuel?' <span class="chip c">현물</span>':""}${iceTag(x)}
+          ${x.spot_fuel?' <span class="chip c">현물</span>':""}${iceTag(x)}${x.loading?` <span class="chip a" title="OI 적재 지속 + 가격 아직 = 점화 직전 (실측 승률 ${x.loading>=2?"76":"65"}%)">🔋${x.loading>=2?"🔋":""} 장전</span>`:""}
           <div class="why">${x.why||""}${conflictTag(x)}</div></td>
       <td><div class="alpha"><b>${alpha}</b>
           <div class="bar-o"><div class="bar-i" style="width:${alpha}%"></div></div></div></td>
