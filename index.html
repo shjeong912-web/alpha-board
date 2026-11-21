@@ -287,8 +287,8 @@ const px = v => v==null ? "—" : (v>=100? v.toFixed(2) : v>=1 ? v.toFixed(4) : 
 const kst = iso => { if(!iso) return "—"; const d=new Date(iso); return d.toLocaleString("ko-KR",{timeZone:"Asia/Seoul",month:"2-digit",day:"2-digit",hour:"2-digit",minute:"2-digit",hour12:false}); };
 
 /* ───── 가입제: Supabase ───── */
-const SUPABASE_URL = "";        // 예: https://abcd1234.supabase.co
-const SUPABASE_ANON_KEY = "";   // Settings → API 의 anon(public) 키. 공개돼도 되는 키이고, 실제 보호는 데이터베이스 규칙이 한다
+const SUPABASE_URL = "https://czhloffxoaatqmknltvp.supabase.co";        // 예: https://abcd1234.supabase.co
+const SUPABASE_ANON_KEY = "sb_publishable_RNU9BJO89R15wlYy4AF6fQ_W8sp7DOL";  // 공개용 키(브라우저에 넣어도 되는 키)   // Settings → API 의 anon(public) 키. 공개돼도 되는 키이고, 실제 보호는 데이터베이스 규칙이 한다
 let SB = null, ME = null, PROF = null, STARTED = false, TIMER = null;
 function sbClient(){
   if (SB) return SB;
