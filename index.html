@@ -158,7 +158,7 @@ svg text{font-family:'Noto Sans KR',sans-serif}
 .gbox .go:disabled{opacity:.5}
 .gbox .lnk{background:none;border:0;color:var(--dim);font:inherit;font-size:12.5px;cursor:pointer;text-decoration:underline;padding:0;margin-top:12px}
 .gmsg{font-size:13px;margin-top:12px;min-height:1em}.gmsg.err{color:var(--down)}.gmsg.ok{color:var(--up)}
-#who{font-size:12px;color:var(--dim);margin-top:4px}#who button{background:none;border:1px solid var(--line);color:var(--dim);border-radius:6px;font:inherit;font-size:12px;padding:1px 8px;margin-left:6px;cursor:pointer}
+#who{font-size:12px;color:var(--dim);margin-top:4px}#who button{background:none;margin-left:4px;border:1px solid var(--line);color:var(--dim);border-radius:6px;font:inherit;font-size:12px;padding:1px 8px;margin-left:6px;cursor:pointer}
 .mbtn{background:none;border:1px solid var(--line);color:var(--text);border-radius:6px;font:inherit;font-size:12.5px;padding:3px 10px;cursor:pointer}
 .mbtn.ok{border-color:#2fbf7166;color:var(--up)}.mbtn.no{border-color:#e5534b66;color:var(--down)}
 </style>
@@ -205,7 +205,7 @@ svg text{font-family:'Noto Sans KR',sans-serif}
 <section id="members">
   <h2>회원 관리 <span class="sub" id="mSub"></span></h2>
   <div class="card" style="overflow-x:auto"><table id="mTable"></table></div>
-  <p class="note">가입한 사람은 '대기'로 들어온다. 승인한 회원만 데이터와 차트 그림을 읽을 수 있다(데이터베이스 규칙으로 막음). 일반 회원은 로그인 후 48시간이 지나면 다시 로그인해야 하고, 관리자는 계속 유지된다. 강퇴하면 그 회원 화면은 5분 안에 닫히고 데이터도 바로 막힌다. 접속 수는 30분 넘게 비었다가 다시 들어오면 1회로 센다. 버튼은 두 번 눌러야 실행된다.</p>
+  <p class="note">가입은 아이디·닉네임·비밀번호로만 받는다(이메일 없음). 비밀번호를 잊은 회원은 '비번 초기화'로 임시 비밀번호를 만들어 알려준다. 가입한 사람은 '대기'로 들어온다. 승인한 회원만 데이터와 차트 그림을 읽을 수 있다(데이터베이스 규칙으로 막음). 일반 회원은 로그인 후 48시간이 지나면 다시 로그인해야 하고, 관리자는 계속 유지된다. 강퇴하면 그 회원 화면은 5분 안에 닫히고 데이터도 바로 막힌다. 접속 수는 30분 넘게 비었다가 다시 들어오면 1회로 센다. 버튼은 두 번 눌러야 실행된다.</p>
 </section>
 <div id="gate" hidden><div class="gbox" id="gbox"></div></div>
 <div id="iModal" class="imodal" hidden><div class="ibox"><div class="ihead"><span id="iTitle"></span><button id="iClose" aria-label="닫기">✕</button></div>
@@ -315,7 +315,7 @@ function gate(view, msg){
     const T = {pending:["승인 대기 중","계정으로 가입됐다. 관리자가 승인하면 볼 수 있다."],
                rejected:["가입이 승인되지 않았다","계정의 가입 신청이 거절됐다."],
                banned:["이용이 중지됐다","계정은 관리자가 이용을 중지했다."]}[view];
-    G.innerHTML = `<h2>${T[0]}</h2><div class="sub">${esc(ME?.email||"")} ${T[1]}</div>
+    G.innerHTML = `<h2>${T[0]}</h2><div class="sub">${esc(PROF?.nickname || ME?.user_metadata?.nickname || "")} ${T[1]}</div>
       ${view==="pending"? '<button class="go" id="gRe">다시 확인</button>':""}<button class="lnk" id="gOut">로그아웃</button>${msgHtml(msg)}`;
     if ($("#gRe")) $("#gRe").onclick = () => start(true);
     $("#gOut").onclick = async () => { await SB.auth.signOut(); start(true); };
@@ -325,45 +325,51 @@ function gate(view, msg){
     G.innerHTML = `<h2>새 비밀번호</h2><div class="sub">새로 쓸 비밀번호를 입력한다(8자 이상).</div>
       <label>새 비밀번호</label><input id="gP1" type="password" autocomplete="new-password"><button class="go" id="gGo">바꾸기</button>${msgHtml(msg)}`;
     $("#gGo").onclick = async () => { const p=$("#gP1").value; if(p.length<8) return gate("newpw",{err:1,t:"8자 이상으로 입력"});
-      const {error} = await SB.auth.updateUser({password:p}); error ? gate("newpw",{err:1,t:error.message}) : start(true); };
+      const {error} = await SB.auth.updateUser({password:p}); error ? gate("newpw",{err:1,t:error.message}) : ($("#gate").hidden = true); };
+    G.insertAdjacentHTML("beforeend", `<button class="lnk" id="gCancel">취소</button>`); $("#gCancel").onclick = () => { $("#gate").hidden = true; };
     return;
   }
-  const signup = view==="signup", reset = view==="reset";
+  const signup = view==="signup";
   G.innerHTML = `<h2>HUNS SYSTEM</h2><div class="sub">승인된 회원만 볼 수 있다.</div>
-    <div class="gtabs"><button data-v="login" class="${!signup&&!reset?"on":""}">로그인</button><button data-v="signup" class="${signup?"on":""}">회원가입</button></div>
-    <label>이메일</label><input id="gE" type="email" autocomplete="email">
-    ${reset? "" : `<label>비밀번호${signup?" (8자 이상)":""}</label><input id="gP" type="password" autocomplete="${signup?"new-password":"current-password"}">`}
+    <div class="gtabs"><button data-v="login" class="${!signup?"on":""}">로그인</button><button data-v="signup" class="${signup?"on":""}">회원가입</button></div>
+    <label>아이디${signup?" (영문 소문자·숫자·_ 4~20자)":""}</label><input id="gU" autocomplete="username" autocapitalize="off" spellcheck="false">
+    ${signup? `<label>닉네임 (한글·영문·숫자 2~12자)</label><input id="gN" autocomplete="nickname">`:""}
+    <label>비밀번호${signup?" (8자 이상)":""}</label><input id="gP" type="password" autocomplete="${signup?"new-password":"current-password"}">
     ${signup? `<label>비밀번호 확인</label><input id="gP2" type="password" autocomplete="new-password">`:""}
-    <button class="go" id="gGo">${signup?"가입하기":reset?"재설정 메일 받기":"로그인"}</button>
-    ${!signup&&!reset? `<button class="lnk" id="gReset">비밀번호를 잊었다</button>`:""}${reset? `<button class="lnk" id="gBack">로그인으로</button>`:""}${msgHtml(msg)}`;
+    <button class="go" id="gGo">${signup?"가입하기":"로그인"}</button>
+    ${!signup? `<button class="lnk" id="gForgot">비밀번호를 잊었다</button>`:""}${msgHtml(msg)}`;
   G.querySelectorAll(".gtabs button").forEach(b => b.onclick = () => gate(b.dataset.v));
-  if ($("#gReset")) $("#gReset").onclick = () => gate("reset");
-  if ($("#gBack")) $("#gBack").onclick = () => gate("login");
+  if ($("#gForgot")) $("#gForgot").onclick = () => gate("login", {t:"관리자에게 아이디를 알려주면 임시 비밀번호를 받을 수 있다. 로그인 후 위쪽 '비밀번호 변경'으로 바꾼다."});
   const go = async () => {
-    const e = $("#gE").value.trim(), p = $("#gP")?.value || "";
-    if (!e) return gate(view, {err:1, t:"이메일을 입력"});
+    const u = $("#gU").value.trim().toLowerCase(), p = $("#gP").value || "";
+    if (!ID_RE.test(u)) return gate(view, {err:1, t:"아이디는 영문 소문자·숫자·_ 4~20자"});
     $("#gGo").disabled = true;
-    const back = location.origin + location.pathname;
     try {
       if (signup){
+        const n = $("#gN").value.trim();
+        if (!NICK_RE.test(n)) return gate(view, {err:1, t:"닉네임은 한글·영문·숫자·_ 2~12자"});
         if (p.length < 8) return gate(view, {err:1, t:"비밀번호는 8자 이상"});
         if (p !== $("#gP2").value) return gate(view, {err:1, t:"비밀번호 확인이 다르다"});
-        const {error} = await SB.auth.signUp({email:e, password:p, options:{emailRedirectTo: back}});
-        if (error) return gate(view, {err:1, t:error.message});
-        return gate("login", {t:"확인 메일을 보냈다. 메일의 링크를 누른 뒤 로그인하면 승인 대기 상태가 된다."});
+        const {data:av} = await SB.rpc("name_available", {p_username:u, p_nickname:n});
+        const a0 = Array.isArray(av) ? av[0] : av;
+        if (a0 && !a0.username_ok) return gate(view, {err:1, t:"이미 쓰는 아이디"});
+        if (a0 && !a0.nickname_ok) return gate(view, {err:1, t:"이미 쓰는 닉네임"});
+        const {data, error} = await SB.auth.signUp({email: idEmail(u), password:p, options:{data:{username:u, nickname:n}}});
+        if (error) return gate(view, {err:1, t: /registered|exists/i.test(error.message) ? "이미 쓰는 아이디" : /database/i.test(error.message) ? "이미 쓰는 닉네임이거나 저장 오류" : error.message});
+        if (data?.session) return start(true);
+        return gate("login", {t:"가입됐다. 로그인하면 승인 대기 상태가 된다."});
       }
-      if (reset){
-        const {error} = await SB.auth.resetPasswordForEmail(e, {redirectTo: back});
-        return gate("login", error? {err:1, t:error.message} : {t:"재설정 메일을 보냈다."});
-      }
-      const {error} = await SB.auth.signInWithPassword({email:e, password:p});
-      if (error) return gate(view, {err:1, t: /invalid/i.test(error.message) ? "이메일 또는 비밀번호가 맞지 않다" : /confirm/i.test(error.message) ? "메일 확인을 먼저 해야 한다" : error.message});
+      const {error} = await SB.auth.signInWithPassword({email: idEmail(u), password:p});
+      if (error) return gate(view, {err:1, t: /invalid/i.test(error.message) ? "아이디 또는 비밀번호가 맞지 않다" : /confirm/i.test(error.message) ? "사이트 설정 문제: Supabase에서 'Confirm email'을 꺼야 한다" : error.message});
       start(true);
     } finally { const b=$("#gGo"); if (b) b.disabled = false; }
   };
   $("#gGo").onclick = go;
   G.querySelectorAll("input").forEach(i => i.onkeydown = ev => { if (ev.key==="Enter") go(); });
 }
+const ID_DOMAIN = "member.huns-system.net";   // 아이디를 Supabase용 이메일 모양으로 바꿀 때 쓰는 꼬리(메일은 보내지 않음)
+const ID_RE = /^[a-z0-9_]{4,20}$/, NICK_RE = /^[가-힣A-Za-z0-9_]{2,12}$/;
+const idEmail = u => `${u}@${ID_DOMAIN}`;
 const SESSION_HOURS = 48;   // 일반 회원 로그인 유지 시간(관리자는 제한 없음). 데이터베이스 규칙도 같은 48시간으로 막는다
 async function myStatus(){
   const {data, error} = await SB.rpc("my_status");
@@ -391,7 +397,8 @@ async function start(force){
   if (st.status === "banned") return gate("banned");
   if (expired(st)){ await SB.auth.signOut(); return gate("login", {t:`로그인 후 ${SESSION_HOURS}시간이 지나 다시 로그인해야 한다.`}); }
   $("#gate").hidden = true;
-  $("#who").innerHTML = `${esc(ME.email)}${st.is_admin?' <span class="tag">관리자</span>':""}<button id="logout">로그아웃</button>`;
+  $("#who").innerHTML = `${esc(st.nickname || st.username || "")}${st.is_admin?' <span class="tag">관리자</span>':""}<button id="chpw">비밀번호 변경</button><button id="logout">로그아웃</button>`;
+  $("#chpw").onclick = () => gate("newpw");
   $("#logout").onclick = async () => { await SB.auth.signOut(); location.hash=""; start(true); };
   $("#tabMembers").hidden = !st.is_admin;
   SB.rpc("record_visit").then(()=>{}, ()=>{});
@@ -420,14 +427,15 @@ async function renderMembers(){
     [["pending",`대기 ${cnt("pending")}`],["approved",`승인 ${cnt("approved")}`],["out",`거절·강퇴 ${cnt("rejected")+cnt("banned")}`],["all",`전체 ${data.length}`]]
       .map(([k,t])=>`<button data-f="${k}" class="${MV.filter===k?"on":""}">${t}</button>`).join("")}</span>`;
   const rows = data.filter(x => MV.filter==="all" || (MV.filter==="out" ? (x.status==="rejected"||x.status==="banned") : x.status===MV.filter));
-  $("#mTable").innerHTML = `<tr><th>이메일</th><th>상태</th><th>가입</th><th>마지막 로그인</th><th class="num">접속 수</th><th>마지막 접속</th><th></th></tr>` +
+  $("#mTable").innerHTML = `<tr><th>아이디</th><th>닉네임</th><th>상태</th><th>가입</th><th>마지막 로그인</th><th class="num">접속 수</th><th>마지막 접속</th><th></th></tr>` +
     (rows.length ? rows.map(x=>`<tr>
-    <td>${esc(x.email)}${x.is_admin?' <span class="tag">관리자</span>':""}</td><td>${ST_TXT[x.status]||esc(x.status)}</td>
+    <td class="num" style="text-align:left">${esc(x.username||"")}${x.is_admin?' <span class="tag">관리자</span>':""}</td><td>${esc(x.nickname||"")}</td><td>${ST_TXT[x.status]||esc(x.status)}</td>
     <td class="num" style="text-align:left">${kst(x.created_at)}</td>
     <td class="num" style="text-align:left">${kst(x.last_sign_in_at)}${!x.is_admin && x.status==="approved" && x.last_sign_in_at && (Date.now()-Date.parse(x.last_sign_in_at))>SESSION_HOURS*3600e3 ? ' <span class="mean">(만료)</span>':""}</td>
     <td class="num">${x.visit_count||0}</td><td class="num" style="text-align:left">${x.last_seen_at? kst(x.last_seen_at) : "—"}</td>
-    <td style="white-space:nowrap">${x.is_admin? "" : (ACTIONS[x.status]||[]).map(([v,t,c])=>`<button class="mbtn ${c}" data-id="${x.id}" data-v="${v}" data-t="${t}">${t}</button>`).join(" ")}</td></tr>`).join("")
-    : `<tr><td colspan="7" class="mean">해당 회원 없음</td></tr>`);
+    <td style="white-space:nowrap">${x.is_admin? "" : (ACTIONS[x.status]||[]).map(([v,t,c])=>`<button class="mbtn ${c}" data-id="${x.id}" data-v="${v}" data-t="${t}">${t}</button>`).join(" ")
+      + ` <button class="mbtn" data-id="${x.id}" data-v="pw" data-t="비번 초기화" data-u="${esc(x.username||"")}">비번 초기화</button>`}</td></tr>`).join("")
+    : `<tr><td colspan="8" class="mean">해당 회원 없음</td></tr>`);
   $("#mFilter").onclick = e => { const f = e.target.dataset?.f; if(!f) return; MV.filter = f; MV.armed = null; renderMembers(); };
   $("#mTable").onclick = async e => {
     const b = e.target.closest("button[data-id]"); if(!b) return;
@@ -437,11 +445,25 @@ async function renderMembers(){
       b.textContent = `${b.dataset.t} 확정?`; return;
     }
     MV.armed = null; b.disabled = true;
+    if (b.dataset.v === "pw"){
+      const tmp = tempPassword();
+      const {error} = await SB.rpc("admin_reset_password", {target: b.dataset.id, new_password: tmp});
+      if (error) alertBox(error.message);
+      else noticeBox(`${b.dataset.u} 임시 비밀번호: ${tmp}  — 회원에게 알려주고, 로그인 후 '비밀번호 변경'으로 바꾸게 한다. 이 창을 닫으면 다시 볼 수 없다.`);
+      b.disabled = false; b.textContent = b.dataset.t; return;
+    }
     const {error} = await SB.rpc("set_member_status", {target: b.dataset.id, new_status: b.dataset.v});
     if (error) alertBox(error.message);
     renderMembers();
   };
 }
+function tempPassword(){
+  const c = "abcdefghjkmnpqrstuvwxyz23456789", a = new Uint32Array(10); crypto.getRandomValues(a);
+  return [...a].map(v => c[v % c.length]).join("");
+}
+function noticeBox(t){ const d=document.createElement("div"); d.className="card"; d.style.borderColor="var(--warn)";
+  d.innerHTML = `<span style="font-family:var(--mono)">${esc(t)}</span> <button class="mbtn" style="margin-left:8px">닫기</button>`;
+  d.querySelector("button").onclick = () => d.remove(); $("#members").prepend(d); }
 function alertBox(t){ const d=document.createElement("div"); d.className="err"; d.textContent=t; $("#members").prepend(d); setTimeout(()=>d.remove(), 5000); }
 
 function reasonTable(rs){
