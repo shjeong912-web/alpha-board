@@ -205,7 +205,7 @@ svg text{font-family:'Noto Sans KR',sans-serif}
 <section id="members">
   <h2>회원 관리 <span class="sub" id="mSub"></span></h2>
   <div class="card" style="overflow-x:auto"><table id="mTable"></table></div>
-  <p class="note">가입한 사람은 '승인 대기'로 들어온다. 승인한 회원만 데이터와 차트 그림을 읽을 수 있다(데이터베이스 규칙으로 막음). 승인을 취소하면 다음 새로고침부터 볼 수 없다.</p>
+  <p class="note">가입한 사람은 '대기'로 들어온다. 승인한 회원만 데이터와 차트 그림을 읽을 수 있다(데이터베이스 규칙으로 막음). 일반 회원은 로그인 후 48시간이 지나면 다시 로그인해야 하고, 관리자는 계속 유지된다. 강퇴하면 그 회원 화면은 5분 안에 닫히고 데이터도 바로 막힌다. 접속 수는 30분 넘게 비었다가 다시 들어오면 1회로 센다. 버튼은 두 번 눌러야 실행된다.</p>
 </section>
 <div id="gate" hidden><div class="gbox" id="gbox"></div></div>
 <div id="iModal" class="imodal" hidden><div class="ibox"><div class="ihead"><span id="iTitle"></span><button id="iClose" aria-label="닫기">✕</button></div>
@@ -311,10 +311,14 @@ function gate(view, msg){
   const G = $("#gbox"); $("#gate").hidden = false;
   const msgHtml = m => m ? `<div class="gmsg ${m.err?"err":"ok"}">${esc(m.t)}</div>` : `<div class="gmsg"></div>`;
   if (view==="setup"){ G.innerHTML = `<h2>설정 필요</h2><div class="sub">index.html 의 SUPABASE_URL · SUPABASE_ANON_KEY 를 채워야 로그인 화면이 열린다.</div>`; return; }
-  if (view==="pending"){
-    G.innerHTML = `<h2>승인 대기 중</h2><div class="sub">${esc(ME?.email||"")} 계정으로 가입됐다. 관리자가 승인하면 볼 수 있다.</div>
-      <button class="go" id="gRe">다시 확인</button><button class="lnk" id="gOut">로그아웃</button>${msgHtml(msg)}`;
-    $("#gRe").onclick = () => start(true); $("#gOut").onclick = async () => { await SB.auth.signOut(); start(true); };
+  if (view==="pending" || view==="rejected" || view==="banned"){
+    const T = {pending:["승인 대기 중","계정으로 가입됐다. 관리자가 승인하면 볼 수 있다."],
+               rejected:["가입이 승인되지 않았다","계정의 가입 신청이 거절됐다."],
+               banned:["이용이 중지됐다","계정은 관리자가 이용을 중지했다."]}[view];
+    G.innerHTML = `<h2>${T[0]}</h2><div class="sub">${esc(ME?.email||"")} ${T[1]}</div>
+      ${view==="pending"? '<button class="go" id="gRe">다시 확인</button>':""}<button class="lnk" id="gOut">로그아웃</button>${msgHtml(msg)}`;
+    if ($("#gRe")) $("#gRe").onclick = () => start(true);
+    $("#gOut").onclick = async () => { await SB.auth.signOut(); start(true); };
     return;
   }
   if (view==="newpw"){
@@ -360,37 +364,83 @@ function gate(view, msg){
   $("#gGo").onclick = go;
   G.querySelectorAll("input").forEach(i => i.onkeydown = ev => { if (ev.key==="Enter") go(); });
 }
+const SESSION_HOURS = 48;   // 일반 회원 로그인 유지 시간(관리자는 제한 없음). 데이터베이스 규칙도 같은 48시간으로 막는다
+async function myStatus(){
+  const {data, error} = await SB.rpc("my_status");
+  if (error) throw error;
+  return Array.isArray(data) ? data[0] : data;
+}
+function expired(st){
+  if (!st || st.is_admin) return false;
+  const t = Date.parse(st.last_sign_in_at || ME?.last_sign_in_at || 0);
+  return !t || (Date.now() - t) > SESSION_HOURS * 3600 * 1000;
+}
 async function start(force){
   if (STARTED && !force) return;
   STARTED = true;
   if (window.__DATA__ && !window.__SB_FAKE__){ $("#gate").hidden = true; return boot(); }
   if (!sbClient()) return gate("setup");
   const {data:{session}} = await SB.auth.getSession();
-  if (!session){ ME = null; $("#who").innerHTML = ""; return gate("login"); }
+  if (!session){ ME = null; PROF = null; $("#who").innerHTML = ""; $("#tabMembers").hidden = true; return gate("login"); }
   ME = session.user;
-  const {data:prof} = await SB.from("profiles").select("email,approved,is_admin").eq("id", ME.id).maybeSingle();
-  PROF = prof;
-  if (!prof || !prof.approved) return gate("pending");
+  let st = null;
+  try { st = await myStatus(); } catch(e){ return gate("login", {err:1, t:"상태 확인 실패: " + (e.message||e)}); }
+  PROF = st;
+  if (!st || st.status === "pending") return gate("pending");
+  if (st.status === "rejected") return gate("rejected");
+  if (st.status === "banned") return gate("banned");
+  if (expired(st)){ await SB.auth.signOut(); return gate("login", {t:`로그인 후 ${SESSION_HOURS}시간이 지나 다시 로그인해야 한다.`}); }
   $("#gate").hidden = true;
-  $("#who").innerHTML = `${esc(ME.email)}<button id="logout">로그아웃</button>`;
+  $("#who").innerHTML = `${esc(ME.email)}${st.is_admin?' <span class="tag">관리자</span>':""}<button id="logout">로그아웃</button>`;
   $("#logout").onclick = async () => { await SB.auth.signOut(); location.hash=""; start(true); };
-  $("#tabMembers").hidden = !prof.is_admin;
+  $("#tabMembers").hidden = !st.is_admin;
+  SB.rpc("record_visit").then(()=>{}, ()=>{});
   await boot();
-  if (!TIMER) TIMER = setInterval(boot, 5*60*1000);
+  if (!TIMER) TIMER = setInterval(tick, 5*60*1000);
 }
+async function tick(){
+  // 5분마다: 상태가 바뀌었거나(강퇴 등) 48시간이 지났으면 바로 내보내고, 아니면 데이터 새로고침
+  try {
+    const st = await myStatus();
+    if (!st || st.status !== "approved" || expired(st)){ if (expired(st)) await SB.auth.signOut(); return start(true); }
+    SB.rpc("record_visit").then(()=>{}, ()=>{});
+  } catch(e){}
+  boot();
+}
+const MV = {filter:"pending", armed:null};
+const ST_TXT = {pending:'<span class="warn-c">대기</span>', approved:'<span class="ok">승인</span>', rejected:'<span class="mean">거절</span>', banned:'<span class="no">강퇴</span>'};
+const ACTIONS = {pending:[["approved","승인","ok"],["rejected","거절","no"]], approved:[["banned","강퇴","no"]],
+                 rejected:[["approved","승인","ok"]], banned:[["approved","복구","ok"]]};
 async function renderMembers(){
   if (!PROF?.is_admin) return;
-  const {data, error} = await SB.from("profiles").select("id,email,approved,is_admin,created_at").order("created_at", {ascending:false});
+  const {data, error} = await SB.rpc("admin_members");
   if (error){ $("#mTable").innerHTML = `<tr><td class="err">${esc(error.message)}</td></tr>`; return; }
-  const wait = data.filter(x=>!x.approved).length;
-  $("#mSub").textContent = `전체 ${data.length}명 · 승인 대기 ${wait}명`;
-  $("#mTable").innerHTML = `<tr><th>이메일</th><th>가입 (KST)</th><th>상태</th><th></th></tr>` + data.map(x=>`<tr>
-    <td>${esc(x.email)}${x.is_admin?' <span class="tag">관리자</span>':""}</td><td class="num" style="text-align:left">${kst(x.created_at)}</td>
-    <td>${x.approved?'<span class="ok">승인</span>':'<span class="warn-c">대기</span>'}</td>
-    <td>${x.id===ME.id? "" : `<button class="mbtn ${x.approved?"no":"ok"}" data-id="${x.id}" data-v="${x.approved?0:1}">${x.approved?"승인 취소":"승인"}</button>`}</td></tr>`).join("");
-  $("#mTable").onclick = async e => { const b = e.target.closest("button[data-id]"); if(!b) return; b.disabled = true;
-    const {error} = await SB.from("profiles").update({approved: b.dataset.v==="1"}).eq("id", b.dataset.id);
-    if (error) alertBox(error.message); renderMembers(); };
+  const cnt = k => data.filter(x=>x.status===k).length;
+  $("#mSub").innerHTML = `<span class="seg" id="mFilter" style="display:inline-flex;vertical-align:middle;margin-left:6px">${
+    [["pending",`대기 ${cnt("pending")}`],["approved",`승인 ${cnt("approved")}`],["out",`거절·강퇴 ${cnt("rejected")+cnt("banned")}`],["all",`전체 ${data.length}`]]
+      .map(([k,t])=>`<button data-f="${k}" class="${MV.filter===k?"on":""}">${t}</button>`).join("")}</span>`;
+  const rows = data.filter(x => MV.filter==="all" || (MV.filter==="out" ? (x.status==="rejected"||x.status==="banned") : x.status===MV.filter));
+  $("#mTable").innerHTML = `<tr><th>이메일</th><th>상태</th><th>가입</th><th>마지막 로그인</th><th class="num">접속 수</th><th>마지막 접속</th><th></th></tr>` +
+    (rows.length ? rows.map(x=>`<tr>
+    <td>${esc(x.email)}${x.is_admin?' <span class="tag">관리자</span>':""}</td><td>${ST_TXT[x.status]||esc(x.status)}</td>
+    <td class="num" style="text-align:left">${kst(x.created_at)}</td>
+    <td class="num" style="text-align:left">${kst(x.last_sign_in_at)}${!x.is_admin && x.status==="approved" && x.last_sign_in_at && (Date.now()-Date.parse(x.last_sign_in_at))>SESSION_HOURS*3600e3 ? ' <span class="mean">(만료)</span>':""}</td>
+    <td class="num">${x.visit_count||0}</td><td class="num" style="text-align:left">${x.last_seen_at? kst(x.last_seen_at) : "—"}</td>
+    <td style="white-space:nowrap">${x.is_admin? "" : (ACTIONS[x.status]||[]).map(([v,t,c])=>`<button class="mbtn ${c}" data-id="${x.id}" data-v="${v}" data-t="${t}">${t}</button>`).join(" ")}</td></tr>`).join("")
+    : `<tr><td colspan="7" class="mean">해당 회원 없음</td></tr>`);
+  $("#mFilter").onclick = e => { const f = e.target.dataset?.f; if(!f) return; MV.filter = f; MV.armed = null; renderMembers(); };
+  $("#mTable").onclick = async e => {
+    const b = e.target.closest("button[data-id]"); if(!b) return;
+    const key = b.dataset.id + b.dataset.v;
+    if (MV.armed !== key){ // 실수 방지: 한 번 더 눌러야 실행
+      MV.armed = key; document.querySelectorAll("#mTable button[data-id]").forEach(x=>x.textContent = x.dataset.t);
+      b.textContent = `${b.dataset.t} 확정?`; return;
+    }
+    MV.armed = null; b.disabled = true;
+    const {error} = await SB.rpc("set_member_status", {target: b.dataset.id, new_status: b.dataset.v});
+    if (error) alertBox(error.message);
+    renderMembers();
+  };
 }
 function alertBox(t){ const d=document.createElement("div"); d.className="err"; d.textContent=t; $("#members").prepend(d); setTimeout(()=>d.remove(), 5000); }
 
@@ -811,7 +861,7 @@ function showTab(t){
   document.querySelectorAll("section").forEach(s=>s.classList.toggle("on", s.id===t));
   if(t==="charts" && !CH.drawn && window.LightweightCharts){ CH.drawn=true; renderCharts(); }
   if(t==="onchain" && !OC.drawn){ OC.drawn=true; renderOnchain(); }
-  if(t==="members") renderMembers();
+  if(t==="members"){ MV.armed = null; renderMembers(); }
 }
 $("#nav").onclick = e => { const t=e.target.dataset?.t; if(!t) return; showTab(t); if(location.hash.slice(1)!==t) history.replaceState(null,"","#"+t); };
 $("#range").onclick = e => { const r=e.target.dataset?.r; if(r==null) return; RANGE=+r; document.querySelectorAll("#range button").forEach(b=>b.classList.toggle("on",b===e.target)); renderBreadth(); };
